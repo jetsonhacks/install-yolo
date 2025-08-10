@@ -14,6 +14,7 @@ VENV_DIR="${VENV_DIR:-$HOME/yolo-venv}"
 WHEELS_DIR="${WHEELS_DIR:-./whls}"
 EXTRA_INDEX_URL="${EXTRA_INDEX_URL:-}"        # e.g., https://pypi.org/simple
 REQ_FILE="${REQ_FILE:-}"                      # Optional requirements.txt
+NVCC="/usr/local/cuda/bin/nvcc"
 INSTALL_PACKAGES=(
   "ultralytics[export]"
   "onnx"
@@ -47,8 +48,8 @@ get_jetpack_version() {
   fi
 }
 get_cuda_version() {
-  if command -v nvcc >/dev/null 2>&1; then
-    nvcc --version | awk -F'release ' '/release/{print $2}' | awk -F',' '{print $1}'
+  if command -v $NVCC >/dev/null 2>&1; then
+    $NVCC --version | awk -F'release ' '/release/{print $2}' | awk -F',' '{print $1}'
     return
   fi
   if [[ -f /usr/local/cuda/version.json ]]; then
@@ -128,25 +129,34 @@ PY_BIN="${VENV_DIR}/bin/python"
 mkdir -p "${WHEELS_DIR}"
 declare -a LOCAL_WHEELS=()
 
-download_with_hash() {
-  local url="$1" file hash
-  file="$(basename "${url%%#*}")"
-  hash="$(printf "%s" "$url" | awk -F'#sha256=' 'NF>1{print $2}')"
-  if [[ ! -f "${WHEELS_DIR}/${file}" ]]; then
-    log "Downloading ${file}…"
-    wget -q "${url%%#*}" -O "${WHEELS_DIR}/${file}"
-  else
-    log "Found ${file}; skipping download."
-  fi
-  if [[ -n "$hash" ]]; then
-    echo "${hash}  ${WHEELS_DIR}/${file}" | sha256sum -c -
-  fi
-  LOCAL_WHEELS+=( "${WHEELS_DIR}/${file}" )
-}
-
 if (( ${#WHEELS_KNOWN[@]} )); then
-  log "Fetching JetPack/CUDA-matched wheels for CUDA ${CUDA_MM}…"
-  for u in "${WHEELS_KNOWN[@]}"; do download_with_hash "$u"; done
+  log "Fetching and verifying JetPack/CUDA-matched wheels for CUDA ${CUDA_MM}…"
+  for url in "${WHEELS_KNOWN[@]}"; do
+    file_url="${url%%#*}"
+    file_name=$(basename "${file_url}")
+    hash_part="${url#*#sha256=}"
+    
+    if [[ -z "$hash_part" || "$hash_part" == "$url" ]]; then
+      warn "Skipping ${file_name}: no SHA256 checksum found in URL."
+      continue
+    fi
+
+    file_path="${WHEELS_DIR}/${file_name}"
+
+    if [[ ! -f "$file_path" ]]; then
+      log "Downloading ${file_name}…"
+      wget -q --show-progress "${file_url}" -O "${file_path}"
+    else
+      log "Found ${file_name}; skipping download."
+    fi
+
+    log "Verifying SHA256 for ${file_name}..."
+    if ! printf "%s  %s\n" "${hash_part}" "${file_path}" | sha256sum --check --status; then
+      die "SHA256 checksum mismatch for ${file_name}!"
+    fi
+    log "Verification successful for ${file_name}."
+    LOCAL_WHEELS+=( "$file_path" )
+  done
 fi
 
 # Include any user-provided wheels already in WHEELS_DIR
@@ -183,3 +193,7 @@ log "Environment ready at ${VENV_DIR}"
 echo
 echo "To use it interactively later:"
 echo "  source '${VENV_DIR}/bin/activate'"
+echo
+echo "You can verify the Yolo installation by running:"
+echo "    yolo version"
+echo
