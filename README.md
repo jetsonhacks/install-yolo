@@ -3,9 +3,9 @@
 This repository contains scripts to simplify the installation of Ultralytics YOLO on a NVIDIA Jetson device. Currently this only works for JetPack 6.2.X. The primary script, install_yolo.sh, automates the process of detecting the JetPack/CUDA version, downloading verified PyTorch and related wheels, and setting up a Python virtual environment.
 
 ## Scripts
-install_yolo.sh: The main installation script. It handles environment setup, CUDA keyring installation, and dependency management. It's designed to be a one-stop solution for getting a YOLO environment running.
+**install_yolo.sh**: The main installation script. It handles environment setup, CUDA keyring installation, and dependency management. It's designed to be a one-stop solution for getting a YOLO environment running.
 
-known_wheels.sh: A data file that stores mappings of CUDA versions (e.g., CUDA 12.6) to the corresponding URLs for pre-built Python wheels for torch, torchvision, torchaudio, and onnxruntime. This allows the installer to use a verified, offline-capable list of dependencies.
+**known_wheels.sh**: A data file that stores mappings of CUDA versions (e.g., CUDA 12.6) to the corresponding URLs for pre-built Python wheels for torch, torchvision, torchaudio, and onnxruntime. This allows the installer to use a verified, offline-capable list of dependencies.
 
 ## Features
 **JetPack/CUDA Detection**: Automatically detects the installed JetPack and CUDA versions on the system.
