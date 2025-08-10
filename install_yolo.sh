@@ -12,9 +12,12 @@ set -Eeuo pipefail
 PYTHON_VERSION="${PYTHON_VERSION:-3.10}"      # Match your wheel ABI (cp310 in examples)
 VENV_DIR="${VENV_DIR:-$HOME/yolo-venv}"
 WHEELS_DIR="${WHEELS_DIR:-./whls}"
-EXTRA_INDEX_URL="${EXTRA_INDEX_URL:-}"        # e.g., https://pypi.org/simple
+EXTRA_INDEX_URL="${EXTRA_INDEX_URL:-}"        
 REQ_FILE="${REQ_FILE:-}"                      # Optional requirements.txt
 NVCC="/usr/local/cuda/bin/nvcc"
+DIST_PACKAGES_PATH="/usr/lib/python3.10/dist-packages"
+TENSORRT_PTH_FILE="$VENV_DIR/lib/python3.10/site-packages/tensorrt.pth"
+
 INSTALL_PACKAGES=(
   "ultralytics[export]"
   "onnx"
@@ -184,6 +187,14 @@ if [[ -n "${REQ_FILE}" && -f "${REQ_FILE}" ]]; then
 fi
 if (( ${#INSTALL_PACKAGES[@]} )); then
   uv pip install "${PIP_ARGS[@]}" "${INSTALL_PACKAGES[@]}"
+fi
+
+log "Checking for TensorRT dist-packages path in venv..."
+if [[ ! -f "$TENSORRT_PTH_FILE" ]]; then
+  log "Creating .pth file to link to TensorRT system bindings..."
+  echo "$DIST_PACKAGES_PATH" > "$TENSORRT_PTH_FILE"
+else
+  log "TensorRT .pth file already exists. Skipping."
 fi
 
 "${PY_BIN}" -V
